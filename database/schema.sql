@@ -1,0 +1,2 @@
+-- Database schema creation begins in Coding Block C1.
+-- No tables are defined in C0.

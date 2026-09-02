@@ -1,0 +1,37 @@
+# Java and Maven
+target/
+*.class
+
+# Node and Vite
+node_modules/
+dist/
+
+# Environment and secret files
+.env
+.env.*
+**/.env
+**/.env.*
+!.env.example
+!**/.env.example
+
+# IDE metadata
+.idea/
+.vscode/
+*.iml
+.classpath
+.project
+.settings/
+
+# Operating system files
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Logs and temporary files
+*.log
+*.tmp
+.tools/
+
+# Runtime document uploads
+storage/*
+!storage/.gitkeep
