@@ -1,11 +1,37 @@
-export const API_BASE_URL = 'http://localhost:8080/api'
+const BASE_URL = 'http://localhost:8080/api';
 
-export async function apiRequest(path, options = {}) {
-  const response = await fetch(`${API_BASE_URL}${path}`, options)
+export const fetchApi = async (endpoint, options = {}) => {
+  const token = localStorage.getItem('token');
+  
+  const headers = {
+    'Content-Type': 'application/json',
+    ...options.headers,
+  };
 
-  if (!response.ok) {
-    throw new Error(`API request failed with status ${response.status}`)
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
   }
 
-  return response.json()
-}
+  const response = await fetch(`${BASE_URL}${endpoint}`, {
+    ...options,
+    headers,
+  });
+
+  if (!response.ok) {
+    let errorMessage = 'An error occurred while fetching data.';
+    try {
+      const errorData = await response.json();
+      errorMessage = errorData.message || errorMessage;
+    } catch (e) {
+      errorMessage = response.statusText || errorMessage;
+    }
+    throw new Error(errorMessage);
+  }
+
+  const contentType = response.headers.get("content-type");
+  if (contentType && contentType.indexOf("application/json") !== -1) {
+    return response.json();
+  }
+  
+  return null;
+};
