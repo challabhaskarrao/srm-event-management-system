@@ -1,0 +1,12 @@
+<svg width="200" height="60" viewBox="0 0 200 60" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Circle / Shield base -->
+  <circle cx="30" cy="30" r="24" fill="#0d2b45" />
+  <circle cx="30" cy="30" r="20" fill="white" />
+  <!-- Abstract Tree / Knowledge symbol inside circle -->
+  <path d="M30 40C30 40 25 35 25 25C25 15 35 15 35 25C35 35 30 40 30 40Z" fill="#3b82f6" />
+  <path d="M30 40C30 40 35 35 35 25C35 15 25 15 25 25C25 35 30 40 30 40Z" fill="#1e40af" />
+  <!-- Text SRM -->
+  <text x="65" y="40" font-family="'Outfit', sans-serif" font-weight="800" font-size="32" fill="#0d2b45">SRM</text>
+  <!-- Subtext -->
+  <text x="66" y="52" font-family="'Inter', sans-serif" font-weight="600" font-size="8" fill="#3b82f6">INSTITUTE OF SCIENCE &amp; TECHNOLOGY</text>
+</svg>
