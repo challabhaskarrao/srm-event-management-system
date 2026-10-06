@@ -28,6 +28,7 @@ public class JdbcUserDAO implements UserDAO {
         user.setRoleId(rs.getLong("role_id"));
         user.setRoleName(rs.getString("role_name"));
         user.setActive(rs.getBoolean("is_active"));
+        user.setSessionVersion(rs.getLong("session_version"));
         
         Timestamp createdAtTs = rs.getTimestamp("created_at");
         if (createdAtTs != null) {
@@ -51,7 +52,7 @@ public class JdbcUserDAO implements UserDAO {
     public Optional<User> findByEmail(String email) {
         String sql = "SELECT u.*, r.role_name FROM users u " +
                      "LEFT JOIN roles r ON u.role_id = r.role_id " +
-                     "WHERE u.email = ?";
+                     "WHERE LOWER(u.email) = ?";
         
         try (Connection conn = dataSource.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
@@ -144,6 +145,38 @@ public class JdbcUserDAO implements UserDAO {
             
         } catch (SQLException e) {
             throw new RuntimeException("Error updating last login for user", e);
+        }
+    }
+
+    @Override
+    public boolean updatePasswordAndIncrementSession(Long userId, String expectedPasswordHash, String newPasswordHash) {
+        String updateUser = "UPDATE users SET password_hash = ?, session_version = session_version + 1, " +
+                "updated_at = CURRENT_TIMESTAMP WHERE user_id = ? AND password_hash = ?";
+        String invalidateResets = "UPDATE password_reset_tokens SET used_at = CURRENT_TIMESTAMP " +
+                "WHERE user_id = ? AND used_at IS NULL";
+        try (Connection connection = dataSource.getConnection()) {
+            connection.setAutoCommit(false);
+            try (PreparedStatement userStatement = connection.prepareStatement(updateUser);
+                 PreparedStatement resetStatement = connection.prepareStatement(invalidateResets)) {
+                userStatement.setString(1, newPasswordHash);
+                userStatement.setLong(2, userId);
+                userStatement.setString(3, expectedPasswordHash);
+                if (userStatement.executeUpdate() != 1) {
+                    connection.rollback();
+                    return false;
+                }
+                resetStatement.setLong(1, userId);
+                resetStatement.executeUpdate();
+                connection.commit();
+                return true;
+            } catch (SQLException exception) {
+                connection.rollback();
+                throw exception;
+            } finally {
+                connection.setAutoCommit(true);
+            }
+        } catch (SQLException exception) {
+            throw new IllegalStateException("Unable to update password", exception);
         }
     }
 }

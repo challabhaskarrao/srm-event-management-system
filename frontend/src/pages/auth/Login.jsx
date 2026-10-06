@@ -3,17 +3,18 @@ import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { login as loginApi } from '../../services/authService';
 import srmLogo from '../../assets/srm-logo.png';
+import { homeForRole } from '../../utils/authRouting';
 
 const Login = () => {
+  const location = useLocation();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
+  const [error, setError] = useState(location.state?.message || '');
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
-  const location = useLocation();
   const { login } = useAuth();
 
-  const from = location.state?.from?.pathname || '/dashboard';
+  const from = location.state?.from?.pathname;
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -22,34 +23,18 @@ const Login = () => {
 
     try {
       const response = await loginApi(email, password);
-      
-      const userObj = response.user || { email };
-      let assignedRole = null;
-      if (response.token) {
-        try {
-          const payload = JSON.parse(atob(response.token.split('.')[1]));
-          assignedRole = payload.role || userObj.role || null;
-        } catch (e) {
-          assignedRole = userObj.role || null;
-        }
-      }
-      
-      if (assignedRole && assignedRole !== 'STUDENT') {
-        throw new Error('Access Denied: Faculty and Administrative staff must use the SRM Desktop Management Suite.');
+
+      if (response.role !== 'STUDENT') {
+        throw new Error('Staff accounts must sign in through the Staff Web Portal.');
       }
 
-      login(response.token, userObj);
-      navigate(from, { replace: true });
+      login(response);
+      navigate(from?.startsWith('/student/') ? from : homeForRole(response.role), { replace: true });
     } catch (err) {
       setError(err.message || 'Failed to login. Please check your credentials.');
     } finally {
       setIsLoading(false);
     }
-  };
-
-  const fillTestCredentials = () => {
-    setEmail('student@srmist.edu.in');
-    setPassword('Admin@123');
   };
 
   return (
@@ -75,6 +60,7 @@ const Login = () => {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="e.g. ra23110@srmist.edu.in"
+              autoComplete="username"
               required
             />
           </div>
@@ -90,6 +76,7 @@ const Login = () => {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="Enter your password"
+              autoComplete="current-password"
               required
             />
           </div>
@@ -100,20 +87,12 @@ const Login = () => {
         </form>
 
         <div className="auth-footer mt-4 text-center">
-          <span className="text-muted text-sm">Don't have an account? </span>
-          <Link to="/signup" className="auth-link text-sm font-bold">Sign Up</Link>
+          <span className="text-muted text-sm">Student accounts are provisioned from official institutional records.</span>
+          <span className="auth-portal-switch">Don't have an account? <Link to="/signup" className="auth-link font-bold">Create Student Account</Link></span>
+          <span className="auth-portal-switch">
+            Staff member? <Link to="/staff/login" className="auth-link font-bold">Open Staff Portal</Link>
+          </span>
         </div>
-
-        {import.meta.env.DEV && (
-          <div className="test-credentials">
-            <p className="test-creds-label">Dev Quick Access</p>
-            <div className="test-creds-buttons">
-              <button onClick={fillTestCredentials} type="button" className="btn btn-secondary btn-sm">
-                Test Student
-              </button>
-            </div>
-          </div>
-        )}
       </div>
     </div>
   );

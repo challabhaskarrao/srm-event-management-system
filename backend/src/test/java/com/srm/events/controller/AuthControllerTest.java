@@ -46,7 +46,7 @@ class AuthControllerTest {
         LoginRequestDTO requestDTO = new LoginRequestDTO("test@example.com", "password");
         AuthResponseDTO responseDTO = new AuthResponseDTO("valid.token", 1L, "test@example.com", "ROLE_USER");
         
-        when(authService.login(any(LoginRequestDTO.class))).thenReturn(responseDTO);
+        when(authService.login(any(LoginRequestDTO.class), eq("127.0.0.1"))).thenReturn(responseDTO);
 
         // Act & Assert
         mockMvc.perform(post("/api/auth/login")
@@ -62,14 +62,14 @@ class AuthControllerTest {
     @Test
     void getCurrentUser_shouldReturn200_withBearerToken() throws Exception {
         // Arrange
-        AuthResponseDTO responseDTO = new AuthResponseDTO("valid.token", 1L, "test@example.com", "ROLE_USER");
+        AuthResponseDTO responseDTO = new AuthResponseDTO(null, 1L, "test@example.com", "ROLE_USER");
         when(authService.getCurrentUser(eq("Bearer valid.token"))).thenReturn(responseDTO);
 
         // Act & Assert
         mockMvc.perform(get("/api/auth/me")
                 .header("Authorization", "Bearer valid.token"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.token").value("valid.token"))
+                .andExpect(jsonPath("$.token").doesNotExist())
                 .andExpect(jsonPath("$.email").value("test@example.com"));
     }
 }

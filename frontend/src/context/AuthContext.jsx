@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { getCurrentUser } from '../services/authService';
 
 const AuthContext = createContext();
 
@@ -12,45 +13,14 @@ export const AuthProvider = ({ children }) => {
   const [role, setRole] = useState(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [lastRole, setLastRole] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('user') || 'null')?.role || null; }
+    catch { return null; }
+  });
 
-  useEffect(() => {
-    // Check localStorage on mount
-    const storedToken = localStorage.getItem('token');
-    const storedUser = localStorage.getItem('user');
-
-    if (storedToken && storedUser) {
-      setToken(storedToken);
-      const parsedUser = JSON.parse(storedUser);
-      setUser(parsedUser);
-      setIsAuthenticated(true);
-      
-      // Basic decode to extract role (assuming typical JWT payload where base64 payload is second part)
-      try {
-        const payload = JSON.parse(atob(storedToken.split('.')[1]));
-        setRole(payload.role || parsedUser.role || null);
-      } catch (e) {
-        setRole(parsedUser.role || null);
-      }
-    }
-    setLoading(false);
-  }, []);
-
-  const login = (newToken, newUser) => {
-    localStorage.setItem('token', newToken);
-    localStorage.setItem('user', JSON.stringify(newUser));
-    setToken(newToken);
-    setUser(newUser);
-    setIsAuthenticated(true);
-    
-    try {
-      const payload = JSON.parse(atob(newToken.split('.')[1]));
-      setRole(payload.role || newUser.role || null);
-    } catch (e) {
-      setRole(newUser.role || null);
-    }
-  };
-
-  const logout = () => {
+  const clearSession = (preserveAudience = true) => {
+    if (preserveAudience && role) setLastRole(role);
+    if (!preserveAudience) setLastRole(null);
     localStorage.removeItem('token');
     localStorage.removeItem('user');
     setToken(null);
@@ -59,6 +29,50 @@ export const AuthProvider = ({ children }) => {
     setIsAuthenticated(false);
   };
 
+  const storeSession = (authResponse) => {
+    const sessionToken = authResponse.token || localStorage.getItem('token');
+    if (!sessionToken) { clearSession(false); return; }
+    const authenticatedUser = {
+      userId: authResponse.userId,
+      email: authResponse.email,
+      role: authResponse.role,
+    };
+    localStorage.setItem('token', sessionToken);
+    localStorage.setItem('user', JSON.stringify(authenticatedUser));
+    setToken(sessionToken);
+    setUser(authenticatedUser);
+    setRole(authResponse.role);
+    setLastRole(authResponse.role);
+    setIsAuthenticated(true);
+  };
+
+  useEffect(() => {
+    const storedToken = localStorage.getItem('token');
+    const restoreSession = async () => {
+      if (!storedToken) {
+        setLoading(false);
+        return;
+      }
+      try {
+        const authenticatedUser = await getCurrentUser();
+        storeSession(authenticatedUser);
+      } catch {
+        clearSession();
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    const handleUnauthorized = () => clearSession(true);
+    window.addEventListener('auth:unauthorized', handleUnauthorized);
+    restoreSession();
+    return () => window.removeEventListener('auth:unauthorized', handleUnauthorized);
+  }, []);
+
+  const login = (authResponse) => storeSession(authResponse);
+
+  const logout = () => clearSession(false);
+
   const value = {
     user,
     token,
@@ -66,7 +80,8 @@ export const AuthProvider = ({ children }) => {
     isAuthenticated,
     login,
     logout,
-    loading
+    loading,
+    lastRole,
   };
 
   return (

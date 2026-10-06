@@ -1,11 +1,17 @@
 package com.srm.events.service;
 
 import com.srm.events.dao.interfaces.UserDAO;
+import com.srm.events.dao.interfaces.PasswordResetTokenDAO;
 import com.srm.events.dto.AuthResponseDTO;
+import com.srm.events.dto.ChangePasswordRequestDTO;
 import com.srm.events.dto.LoginRequestDTO;
 import com.srm.events.model.User;
 import com.srm.events.security.JwtTokenProvider;
+import com.srm.events.security.LoginAttemptGuard;
+import com.srm.events.security.PasswordPolicy;
 import com.srm.events.service.impl.AuthServiceImpl;
+import com.srm.events.service.impl.SecurityAuditService;
+import com.srm.events.service.interfaces.PasswordRecoveryNotifier;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -35,6 +41,12 @@ class AuthServiceImplTest {
     @Mock
     private JwtTokenProvider jwtTokenProvider;
 
+    @Mock private LoginAttemptGuard loginAttemptGuard;
+    @Mock private PasswordPolicy passwordPolicy;
+    @Mock private PasswordResetTokenDAO resetTokenDAO;
+    @Mock private PasswordRecoveryNotifier recoveryNotifier;
+    @Mock private SecurityAuditService auditService;
+
     @InjectMocks
     private AuthServiceImpl authService;
 
@@ -58,7 +70,7 @@ class AuthServiceImplTest {
         // Arrange
         when(userDAO.findByEmail("test@example.com")).thenReturn(Optional.of(activeUser));
         when(passwordEncoder.matches("password123", "hashed_password")).thenReturn(true);
-        when(jwtTokenProvider.generateToken(1L, "test@example.com", "ROLE_USER")).thenReturn("mocked.jwt.token");
+        when(jwtTokenProvider.generateToken(1L, "test@example.com", "ROLE_USER", 0L)).thenReturn("mocked.jwt.token");
 
         // Act
         AuthResponseDTO response = authService.login(validLoginRequest);
@@ -83,7 +95,7 @@ class AuthServiceImplTest {
         ResponseStatusException exception = assertThrows(ResponseStatusException.class, () -> authService.login(validLoginRequest));
         assertEquals(HttpStatus.UNAUTHORIZED, exception.getStatusCode());
         verify(userDAO, never()).updateLastLogin(anyLong());
-        verify(jwtTokenProvider, never()).generateToken(anyLong(), anyString(), anyString());
+        verify(jwtTokenProvider, never()).generateToken(anyLong(), anyString(), anyString(), anyLong());
     }
 
     @Test
@@ -95,7 +107,7 @@ class AuthServiceImplTest {
         // Act & Assert
         ResponseStatusException exception = assertThrows(ResponseStatusException.class, () -> authService.login(validLoginRequest));
         assertEquals(HttpStatus.UNAUTHORIZED, exception.getStatusCode());
-        verify(passwordEncoder, never()).matches(anyString(), anyString());
+        verify(passwordEncoder).matches("password123", "hashed_password");
     }
 
     @Test
@@ -124,7 +136,7 @@ class AuthServiceImplTest {
 
         // Assert
         assertNotNull(response);
-        assertEquals(rawToken, response.getToken());
+        assertNull(response.getToken());
         assertEquals(1L, response.getUserId());
     }
 
@@ -138,5 +150,41 @@ class AuthServiceImplTest {
         ResponseStatusException exception = assertThrows(ResponseStatusException.class, () -> authService.getCurrentUser(token));
         assertEquals(HttpStatus.UNAUTHORIZED, exception.getStatusCode());
         assertEquals("Invalid or expired token", exception.getReason());
+    }
+
+    @Test
+    void changePasswordVerifiesCurrentPasswordAndIncrementsSession() {
+        activeUser.setPasswordHash("old-hash");
+        when(jwtTokenProvider.validateToken("valid.token")).thenReturn(true);
+        when(jwtTokenProvider.getUserIdFromToken("valid.token")).thenReturn(1L);
+        when(userDAO.findById(1L)).thenReturn(Optional.of(activeUser));
+        when(passwordEncoder.matches("CurrentPassword1", "old-hash")).thenReturn(true);
+        when(passwordEncoder.matches("NewPassword123", "old-hash")).thenReturn(false);
+        when(passwordEncoder.encode("NewPassword123")).thenReturn("new-hash");
+        when(userDAO.updatePasswordAndIncrementSession(1L, "old-hash", "new-hash")).thenReturn(true);
+        ChangePasswordRequestDTO request = new ChangePasswordRequestDTO();
+        request.setCurrentPassword("CurrentPassword1"); request.setNewPassword("NewPassword123");
+
+        authService.changePassword("Bearer valid.token", request);
+
+        verify(passwordPolicy).validate("NewPassword123");
+        verify(userDAO).updatePasswordAndIncrementSession(1L, "old-hash", "new-hash");
+    }
+
+    @Test
+    void changePasswordRejectsWrongCurrentPassword() {
+        activeUser.setPasswordHash("old-hash");
+        when(jwtTokenProvider.validateToken("valid.token")).thenReturn(true);
+        when(jwtTokenProvider.getUserIdFromToken("valid.token")).thenReturn(1L);
+        when(userDAO.findById(1L)).thenReturn(Optional.of(activeUser));
+        when(passwordEncoder.matches("WrongPassword1", "old-hash")).thenReturn(false);
+        ChangePasswordRequestDTO request = new ChangePasswordRequestDTO();
+        request.setCurrentPassword("WrongPassword1"); request.setNewPassword("NewPassword123");
+
+        ResponseStatusException exception = assertThrows(ResponseStatusException.class,
+                () -> authService.changePassword("Bearer valid.token", request));
+
+        assertEquals(HttpStatus.UNAUTHORIZED, exception.getStatusCode());
+        verify(userDAO, never()).updatePasswordAndIncrementSession(anyLong(), anyString(), anyString());
     }
 }

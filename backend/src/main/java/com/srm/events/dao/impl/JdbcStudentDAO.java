@@ -1,6 +1,7 @@
 package com.srm.events.dao.impl;
 
 import com.srm.events.dao.interfaces.StudentDAO;
+import com.srm.events.dto.StudentProfileDTO;
 import com.srm.events.model.Student;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Repository;
@@ -71,5 +72,56 @@ public class JdbcStudentDAO implements StudentDAO {
             throw new RuntimeException("Error finding student by student_id", e);
         }
         return Optional.empty();
+    }
+
+    @Override
+    public Optional<Student> findByRegistrationNumber(String registrationNumber) {
+        String sql = "SELECT * FROM students WHERE UPPER(register_number) = UPPER(?)";
+        try (Connection conn = dataSource.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, registrationNumber);
+            try (ResultSet rs = ps.executeQuery()) {
+                return rs.next() ? Optional.of(mapRowToStudent(rs)) : Optional.empty();
+            }
+        } catch (SQLException exception) {
+            throw new RuntimeException("Error finding student by registration number", exception);
+        }
+    }
+
+    @Override
+    public Optional<StudentProfileDTO> findProfileByUserId(Long userId) {
+        String sql = "SELECT s.student_id, s.register_number, s.name, u.email, " +
+                "d.department_code, d.department_name, sec.section_name, " +
+                "ay.year_label, s.student_year, s.semester, s.batch " +
+                "FROM students s " +
+                "JOIN users u ON u.user_id = s.user_id " +
+                "JOIN departments d ON d.department_id = s.department_id " +
+                "JOIN sections sec ON sec.section_id = s.section_id " +
+                "JOIN academic_years ay ON ay.academic_year_id = s.academic_year_id " +
+                "WHERE s.user_id = ?";
+        try (Connection conn = dataSource.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setLong(1, userId);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (!rs.next()) {
+                    return Optional.empty();
+                }
+                StudentProfileDTO profile = new StudentProfileDTO();
+                profile.setStudentId(rs.getLong("student_id"));
+                profile.setRegistrationNumber(rs.getString("register_number"));
+                profile.setName(rs.getString("name"));
+                profile.setEmail(rs.getString("email"));
+                profile.setDepartmentCode(rs.getString("department_code"));
+                profile.setDepartmentName(rs.getString("department_name"));
+                profile.setSectionName(rs.getString("section_name"));
+                profile.setAcademicYear(rs.getString("year_label"));
+                profile.setStudentYear(rs.getInt("student_year"));
+                profile.setSemester(rs.getInt("semester"));
+                profile.setBatch(rs.getString("batch"));
+                return Optional.of(profile);
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException("Error loading Student profile", e);
+        }
     }
 }

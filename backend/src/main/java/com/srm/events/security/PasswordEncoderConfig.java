@@ -10,6 +10,8 @@ public class PasswordEncoderConfig {
 
     @Bean
     public PasswordEncoder passwordEncoder() {
-        return new BCryptPasswordEncoder();
+        // Cost 12 for newly generated hashes. BCrypt embeds its cost in each
+        // hash, so existing cost-10 development hashes remain verifiable.
+        return new BCryptPasswordEncoder(12);
     }
 }

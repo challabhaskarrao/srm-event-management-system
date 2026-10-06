@@ -30,8 +30,33 @@ Desktop.ini
 # Logs and temporary files
 *.log
 *.tmp
+*.hprof
+coverage/
 .tools/
 
 # Runtime document uploads
 storage/*
 !storage/.gitkeep
+
+# Capacitor / Android generated output
+**/.gradle/
+frontend/android/**/build/
+frontend/android/local.properties
+frontend/android/.cxx/
+*.apk
+*.aab
+*.aar
+*.jks
+*.keystore
+*.p12
+*.pfx
+
+# Local database exports
+*.sql.gz
+*.dump
+*.bak
+
+# Development tool and presentation artifacts
+.codex-finalizer/
+.ppt-build/
+presentation-output/

@@ -17,6 +17,7 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDate;
 import java.util.Optional;
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
@@ -36,6 +37,7 @@ class EventServiceImplTest {
 
     @BeforeEach
     void setUp() {
+        lenient().when(eventDAO.categoryExists(1L)).thenReturn(true);
         validRequest = new CreateEventRequestDTO();
         validRequest.setName("Tech Conference");
         validRequest.setCategoryId(1L);
@@ -115,5 +117,31 @@ class EventServiceImplTest {
             eventService.getEventById(99L)
         );
         assertEquals(HttpStatus.NOT_FOUND, exception.getStatusCode());
+    }
+
+    @Test
+    void updateEvent_shouldValidateAndPersistSupportedFields() {
+        when(eventDAO.findById(10L)).thenReturn(Optional.of(mockEvent), Optional.of(mockEvent));
+        when(eventDAO.update(any(Event.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        EventResponseDTO response = eventService.updateEvent(10L, validRequest);
+        assertEquals("Tech Conference", response.getEventName());
+        verify(eventDAO).update(mockEvent);
+    }
+
+    @Test
+    void createEvent_shouldRejectUnsafeUrl() {
+        validRequest.setEventUrl("javascript:alert(1)");
+        ResponseStatusException exception = assertThrows(ResponseStatusException.class,
+                () -> eventService.createEvent(validRequest, 5L));
+        assertEquals(HttpStatus.BAD_REQUEST, exception.getStatusCode());
+    }
+
+    @Test
+    void getAvailableEvents_shouldUseAvailableEventQuery() {
+        when(eventDAO.findAvailable(25, 0)).thenReturn(List.of(mockEvent));
+
+        assertEquals(1, eventService.getAvailableEvents(25, 0).size());
+        verify(eventDAO).findAvailable(25, 0);
+        verify(eventDAO, never()).findAll(anyInt(), anyInt());
     }
 }

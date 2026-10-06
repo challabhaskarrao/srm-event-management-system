@@ -9,12 +9,22 @@ public class Event {
     private String eventName;
     private Long categoryId;
     private String categoryName;
+    private String eventTypeCode;
+    private String eventTypeName;
+    private String typeSpecificDetails;
+    private String otherCategory;
     private String organizer;
     private LocalDate startDate;
     private LocalDate endDate;
     private String venue;
+    private String city;
+    private String state;
+    private String country;
     private EventMode mode;
     private String eventUrl;
+    private String description;
+    private boolean registrationFeeRequired;
+    private java.math.BigDecimal registrationFeeAmount;
     private Long createdByUserId;
     private String createdByEmail;
     private LocalDateTime createdAt;
@@ -54,6 +64,14 @@ public class Event {
     public void setCategoryName(String categoryName) {
         this.categoryName = categoryName;
     }
+    public String getEventTypeCode() { return eventTypeCode; }
+    public void setEventTypeCode(String value) { eventTypeCode = value; }
+    public String getEventTypeName() { return eventTypeName; }
+    public void setEventTypeName(String value) { eventTypeName = value; }
+    public String getTypeSpecificDetails() { return typeSpecificDetails; }
+    public void setTypeSpecificDetails(String value) { typeSpecificDetails = value; }
+    public String getOtherCategory() { return otherCategory; }
+    public void setOtherCategory(String otherCategory) { this.otherCategory = otherCategory; }
 
     public String getOrganizer() {
         return organizer;
@@ -86,6 +104,12 @@ public class Event {
     public void setVenue(String venue) {
         this.venue = venue;
     }
+    public String getCity() { return city; }
+    public void setCity(String city) { this.city = city; }
+    public String getState() { return state; }
+    public void setState(String state) { this.state = state; }
+    public String getCountry() { return country; }
+    public void setCountry(String country) { this.country = country; }
 
     public EventMode getMode() {
         return mode;
@@ -102,6 +126,12 @@ public class Event {
     public void setEventUrl(String eventUrl) {
         this.eventUrl = eventUrl;
     }
+    public String getDescription() { return description; }
+    public void setDescription(String description) { this.description = description; }
+    public boolean isRegistrationFeeRequired() { return registrationFeeRequired; }
+    public void setRegistrationFeeRequired(boolean registrationFeeRequired) { this.registrationFeeRequired = registrationFeeRequired; }
+    public java.math.BigDecimal getRegistrationFeeAmount() { return registrationFeeAmount; }
+    public void setRegistrationFeeAmount(java.math.BigDecimal registrationFeeAmount) { this.registrationFeeAmount = registrationFeeAmount; }
 
     public Long getCreatedByUserId() {
         return createdByUserId;

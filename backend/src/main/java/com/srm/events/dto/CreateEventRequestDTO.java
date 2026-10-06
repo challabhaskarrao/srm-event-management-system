@@ -3,17 +3,20 @@ package com.srm.events.dto;
 import com.srm.events.model.EventMode;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 import java.time.LocalDate;
 
 public class CreateEventRequestDTO {
 
     @NotBlank(message = "Event name is required")
+    @Size(max = 200, message = "Event name must not exceed 200 characters")
     private String name;
 
     @NotNull(message = "Category ID is required")
     private Long categoryId;
 
     @NotBlank(message = "Organizer is required")
+    @Size(max = 200, message = "Organizer must not exceed 200 characters")
     private String organizer;
 
     @NotNull(message = "Start date is required")
@@ -25,7 +28,10 @@ public class CreateEventRequestDTO {
     @NotNull(message = "Event mode is required")
     private EventMode mode;
 
+    @Size(max = 255, message = "Venue must not exceed 255 characters")
     private String venue;
+
+    @Size(max = 500, message = "Event URL must not exceed 500 characters")
     private String eventUrl;
 
     public CreateEventRequestDTO() {

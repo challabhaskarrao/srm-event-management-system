@@ -8,4 +8,5 @@ public interface UserDAO {
     Optional<User> findById(Long userId);
     User save(User user);
     void updateLastLogin(Long userId);
+    boolean updatePasswordAndIncrementSession(Long userId, String expectedPasswordHash, String newPasswordHash);
 }

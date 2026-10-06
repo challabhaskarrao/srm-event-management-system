@@ -1,5 +1,6 @@
 package com.srm.events.security;
 
+import com.srm.events.dao.interfaces.UserDAO;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
@@ -10,31 +11,50 @@ import org.springframework.stereotype.Component;
 
 import javax.crypto.SecretKey;
 import java.util.Date;
+import java.util.UUID;
 
 @Component
 public class JwtTokenProvider {
 
-    @Value("${jwt.secret:404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970}")
+    private final UserDAO userDAO;
+
+    public JwtTokenProvider(UserDAO userDAO) {
+        this.userDAO = userDAO;
+    }
+
+    @Value("${jwt.secret:}")
     private String jwtSecret;
 
     @Value("${jwt.expiration-ms:86400000}")
     private long jwtExpirationMs;
 
+    @Value("${jwt.issuer:srm-event-management}")
+    private String jwtIssuer;
+
     private SecretKey key() {
-        return Keys.hmacShaKeyFor(Decoders.BASE64.decode(jwtSecret));
+        try {
+            return Keys.hmacShaKeyFor(Decoders.BASE64.decode(jwtSecret));
+        } catch (RuntimeException exception) {
+            throw new IllegalStateException(
+                    "JWT_SECRET must be a Base64-encoded signing key containing at least 32 bytes",
+                    exception);
+        }
     }
 
-    public String generateToken(Long userId, String email, String role) {
+    public String generateToken(Long userId, String email, String role, long sessionVersion) {
         Date now = new Date();
         Date expiryDate = new Date(now.getTime() + jwtExpirationMs);
 
         return Jwts.builder()
+                .issuer(jwtIssuer)
                 .subject(email)
+                .id(UUID.randomUUID().toString())
                 .claim("userId", userId)
                 .claim("role", role)
+                .claim("sessionVersion", sessionVersion)
                 .issuedAt(now)
                 .expiration(expiryDate)
-                .signWith(key())
+                .signWith(key(), Jwts.SIG.HS256)
                 .compact();
     }
 
@@ -54,13 +74,14 @@ public class JwtTokenProvider {
 
     public boolean validateToken(String token) {
         try {
-            Jwts.parser()
-                .verifyWith(key())
-                .build()
-                .parseSignedClaims(token);
-            return true;
+            Claims claims = getClaimsFromToken(token);
+            Number userId = claims.get("userId", Number.class);
+            Number sessionVersion = claims.get("sessionVersion", Number.class);
+            if (userId == null || sessionVersion == null) return false;
+            return userDAO.findById(userId.longValue())
+                    .filter(user -> user.isActive() && user.getSessionVersion() == sessionVersion.longValue())
+                    .isPresent();
         } catch (JwtException | IllegalArgumentException e) {
-            // Token is invalid or expired
             return false;
         }
     }
@@ -68,6 +89,7 @@ public class JwtTokenProvider {
     private Claims getClaimsFromToken(String token) {
         return Jwts.parser()
                 .verifyWith(key())
+                .requireIssuer(jwtIssuer)
                 .build()
                 .parseSignedClaims(token)
                 .getPayload();

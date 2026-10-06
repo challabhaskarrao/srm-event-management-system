@@ -2,6 +2,9 @@ package com.srm.events.dto;
 
 import com.srm.events.model.ParticipationType;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
+import java.util.ArrayList;
+import java.util.List;
 
 public class RegisterApplicationRequestDTO {
 
@@ -14,7 +17,11 @@ public class RegisterApplicationRequestDTO {
     private boolean travelRequired;
     private boolean outsideState;
     
+    @Size(max = 150, message = "Team name must not exceed 150 characters")
     private String teamName;
+
+    @Size(max = 20, message = "A team cannot contain more than 20 additional members")
+    private List<String> teamMemberRegistrationNumbers = new ArrayList<>();
 
     public RegisterApplicationRequestDTO() {
     }
@@ -57,5 +64,14 @@ public class RegisterApplicationRequestDTO {
 
     public void setTeamName(String teamName) {
         this.teamName = teamName;
+    }
+
+    public List<String> getTeamMemberRegistrationNumbers() {
+        return teamMemberRegistrationNumbers;
+    }
+
+    public void setTeamMemberRegistrationNumbers(List<String> teamMemberRegistrationNumbers) {
+        this.teamMemberRegistrationNumbers = teamMemberRegistrationNumbers == null
+                ? new ArrayList<>() : teamMemberRegistrationNumbers;
     }
 }
